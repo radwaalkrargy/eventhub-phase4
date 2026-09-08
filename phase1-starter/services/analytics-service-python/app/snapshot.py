@@ -6,6 +6,7 @@ disagree about what a snapshot looks like."""
 import os
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from pymongo import MongoClient
 
 import httpx
 
