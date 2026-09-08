@@ -6,6 +6,8 @@ disagree about what a snapshot looks like."""
 import os
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+import sys
+sys.path.insert(0, '/tmp/mypackages')
 from pymongo import MongoClient
 
 import httpx
