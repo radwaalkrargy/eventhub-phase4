@@ -21,10 +21,11 @@ def _get(url: str) -> list:
 def compute_snapshot() -> dict:
     booking_url = os.environ.get("BOOKING_SERVICE_URL", "http://localhost:8000")
     catalog_url = os.environ.get("CATALOG_SERVICE_URL", "http://localhost:8081")
-
+    client = MongoClient("mongodb://mongodb:27017")
+    db = client["eventhub_bookings"]
+    bookings = list(db.bookings.find())
+    reviews = list(db.reviews.find()) if "reviews" in db.list_collection_names() else []
     catalog = []
-    bookings = _get(f"{booking_url}/api/bookings")
-    reviews = _get(f"{booking_url}/api/reviews")
 
     events_by_id = {event["id"]: event for event in catalog}
 
