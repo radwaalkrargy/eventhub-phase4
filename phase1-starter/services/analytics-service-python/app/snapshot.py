@@ -19,7 +19,7 @@ def _get(url: str) -> list:
 
 
 def compute_snapshot() -> dict:
-    booking_url = os.environ.get("BOOKING_SERVICE_URL", "http://localhost:8083")
+    booking_url = os.environ.get("BOOKING_SERVICE_URL", "http://localhost:8000")
     catalog_url = os.environ.get("CATALOG_SERVICE_URL", "http://localhost:8081")
 
     catalog = []
