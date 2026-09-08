@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from fallback import rule_based_analysis
-from ollama_client import analyze_with_ollama
+from app.fallback import rule_based_analysis
+from app.ollama_client import analyze_with_ollama
 
 app = FastAPI(title="ai-insight-service")
 
