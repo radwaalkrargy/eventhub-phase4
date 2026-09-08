@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 
-from app.redis_client import read_snapshot
+from redis_client import read_snapshot
 
 app = FastAPI(title="analytics-service")
 
