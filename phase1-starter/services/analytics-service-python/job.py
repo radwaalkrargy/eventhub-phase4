@@ -6,6 +6,8 @@ import logging
 
 from app.redis_client import write_snapshot
 from app.snapshot import compute_snapshot
+import sys
+sys.path.insert(0, '/tmp/mypackages')
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("analytics-job")
