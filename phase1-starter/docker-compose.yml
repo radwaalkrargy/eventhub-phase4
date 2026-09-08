@@ -1,0 +1,187 @@
+version: '3.8'
+
+networks:
+  eventhub-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  mongodata:
+  redisdata:
+  rabbitdata:
+
+services:
+  # --- Databases & Infrastructure ---
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    networks:
+      - eventhub-net
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: eventhub
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    networks:
+      - eventhub-net
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: eventhub_catalog
+    ports:
+      - "3306:3306"
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    networks:
+      - eventhub-net
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'db.runCommand(\"ping\").ok' | mongosh --quiet || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    networks:
+      - eventhub-net
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    networks:
+      - eventhub-net
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq
+
+  # --- Microservices ---
+  auth-service:
+    build: ./services/auth-service-node
+    container_name: auth-service
+    networks:
+      - eventhub-net
+    ports:
+      - "3000:3000"
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  catalog-service:
+    build: ./services/legacy-catalog-java
+    container_name: catalog-service
+    networks:
+      - eventhub-net
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/eventhub_catalog?createDatabaseIfNotExist=true&useSSL=false
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=rootpassword
+    depends_on:
+      - mysql
+
+  booking-service:
+    build: ./services/booking-service-python
+    container_name: booking-service
+    networks:
+      - eventhub-net
+    ports:
+      - "8005:8000"
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+      MONGODB_URL: mongodb://mongo:27017
+      MONGO_URL: mongodb://mongo:27017
+      MONGO_HOST: mongo
+      DB_HOST: mongo
+      MONGO_PORT: 27017
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: eventhub
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+
+  ai-service:
+    build: ./services/ai-insight-service-python
+    container_name: ai-service
+    networks:
+      - eventhub-net
+    ports:
+      - "8001:8000"
+    command: python -m app.main
+
+  analytics-service:
+    build: ./services/analytics-service-python
+    container_name: analytics-service
+    networks:
+      - eventhub-net
+    ports:
+      - "8002:8000"
+    environment:
+      PGHOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend-service:
+    build: ./frontend
+    container_name: frontend-service
+    networks:
+      - eventhub-net
+    ports:
+      - "8080:80"
+
+  analytics-job:
+    build: ./services/analytics-service-python
+    container_name: analytics-job
+    networks:
+      - eventhub-net
+    command: python job.py
+    environment:
+      BOOKING_SERVICE_URL: http://booking-service:8000
+      CATALOG_SERVICE_URL: http://booking-service:8000
+      PGHOST: postgres
+      PGDATABASE: eventhub
+      REDIS_HOST: redis
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      booking-service:
+        condition: service_started
+      redis:
+        condition: service_healthy
