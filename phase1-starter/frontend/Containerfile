@@ -6,5 +6,6 @@ COPY . .
 RUN chmod +x node_modules/.bin/vite
 RUN npm run build
 RUN npm install -g http-server
-EXPOSE 80
-CMD ["http-server", "dist", "-p", "80"]
+EXPOSE 8080
+USER 10001
+CMD ["http-server", "dist", "-p", "8080", "--host", "0.0.0.0"]
